@@ -7,19 +7,24 @@ import { register } from "../lib/signal-handler.js";
 import type { CliCommand } from "../types.js";
 
 export class McpCommand implements CliCommand {
-  constructor(private readonly io = new CliIO(process.stderr, process.stderr)) {}
+  constructor(
+    private readonly io = new CliIO(process.stderr, process.stderr),
+  ) {}
 
   register(program: CommanderCommand): void {
     program
       .command("mcp")
       .description("Start the stdio MCP server for local cron jobs")
-      .option("--channel <name>", "Channel name, for receiving notifications")
+      .option(
+        "--channels",
+        "Enable hooman/channel notifications for scheduler ticks",
+      )
       .action(this.action.bind(this));
   }
 
-  private async action(options: { channel?: string }): Promise<void> {
+  private async action(options: { channels?: boolean }): Promise<void> {
     let keep = false;
-    const server = await CronMcpServer.create(options.channel);
+    const server = await CronMcpServer.create(Boolean(options.channels));
 
     const unregister = register(async () => {
       this.io.line("Shutting down cronmcp server...");

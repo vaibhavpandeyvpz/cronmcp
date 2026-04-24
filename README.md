@@ -45,10 +45,10 @@ npm run dev -- mcp
 npx cronmcp mcp
 ```
 
-2. If your MCP host supports notifications and you want tick events, provide a channel name:
+2. If your MCP host supports notifications and you want tick events, enable channels:
 
 ```bash
-npx cronmcp mcp --channel claude/channel
+npx cronmcp mcp --channels
 ```
 
 The server uses stdio, so it is meant to be launched by an MCP client or wrapper rather than browsed directly in a terminal.
@@ -74,11 +74,13 @@ The server currently exposes these tools:
 
 ## Push Channel
 
-When started with `--channel <name>`, the server:
+When started with `--channels`, the server:
 
-- advertises the experimental MCP capability `<name>`
-- advertises `identity/session` with path `meta.session`
-- emits `notifications/<name>` for scheduled cron tick events
+- advertises the experimental MCP capability `hooman/channel`
+- advertises `hooman/user` with path `meta.user`
+- advertises `hooman/session` with path `meta.session`
+- advertises `hooman/thread` with path `meta.thread`
+- emits `notifications/hooman/channel` for scheduled cron tick events
 
 Each notification includes:
 
@@ -86,6 +88,7 @@ Each notification includes:
 - `meta.source`: `cron` (channel contract)
 - `meta.user`: `scheduler`
 - `meta.session`: the cron job ID
+- `meta.thread`: omitted for cron tick events
 
 The JSON-decoded `content` payload includes:
 
@@ -103,7 +106,12 @@ The JSON-decoded `content` payload includes:
 Each record shape:
 
 ```json
-{"id":"job_34a56f84-cf7e-4f8d-810c-1777d9f4a5f1","schedule":"*/5 * * * * *","prompt":"Check queue depth","once":false}
+{
+  "id": "job_34a56f84-cf7e-4f8d-810c-1777d9f4a5f1",
+  "schedule": "*/5 * * * * *",
+  "prompt": "Check queue depth",
+  "once": false
+}
 ```
 
 ## Notes

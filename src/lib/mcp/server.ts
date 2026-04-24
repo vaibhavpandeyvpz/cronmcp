@@ -11,6 +11,8 @@ import { createJsonResult } from "./helpers.js";
 import { packageMetadata } from "../package-metadata.js";
 import type { CreateCronJobInput, UpdateCronJobInput } from "../cron/types.js";
 
+const HOOMAN_CHANNEL = "hooman/channel";
+
 function instructions(channel = false): string {
   const files = ["formatting.md", channel ? "channel.md" : null].filter(
     Boolean,
@@ -29,7 +31,7 @@ export class CronMcpServer {
   private readonly scheduler: CronScheduler;
   private readonly channelPublisher?: CronChannel;
 
-  private constructor(channel?: string) {
+  private constructor(channels: boolean) {
     this.mcp = new McpServer(
       {
         name: packageMetadata.name,
@@ -37,20 +39,22 @@ export class CronMcpServer {
       },
       {
         capabilities: {
-          experimental: channel
+          experimental: channels
             ? {
-                "identity/session": { path: "meta.session" },
-                [channel]: {},
+                "hooman/user": { path: "meta.user" },
+                "hooman/session": { path: "meta.session" },
+                "hooman/thread": { path: "meta.thread" },
+                [HOOMAN_CHANNEL]: {},
               }
             : undefined,
         },
-        instructions: instructions(Boolean(channel)),
+        instructions: instructions(channels),
       },
     );
 
     this.store = new CronStore();
-    this.channelPublisher = channel
-      ? new CronChannel(this.mcp.server, channel)
+    this.channelPublisher = channels
+      ? new CronChannel(this.mcp.server, HOOMAN_CHANNEL)
       : undefined;
     this.scheduler = new CronScheduler({
       onTick: async (event) => {
@@ -62,8 +66,8 @@ export class CronMcpServer {
     });
   }
 
-  static async create(channel?: string): Promise<CronMcpServer> {
-    const server = new CronMcpServer(channel);
+  static async create(channels: boolean): Promise<CronMcpServer> {
+    const server = new CronMcpServer(channels);
     server.registerTools();
     await server.bootstrap();
     return server;
@@ -107,7 +111,9 @@ export class CronMcpServer {
           once: z
             .boolean()
             .default(false)
-            .describe("If true, the job is removed after first successful tick."),
+            .describe(
+              "If true, the job is removed after first successful tick.",
+            ),
         }),
       },
       async ({ schedule, prompt, once }) => {

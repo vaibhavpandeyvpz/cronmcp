@@ -36,7 +36,9 @@ export class CronStore {
       try {
         jobs.push(cronJobSchema.parse(parsed));
       } catch {
-        throw new Error(`Invalid job payload at line ${index + 1} in ${this.path}.`);
+        throw new Error(
+          `Invalid job payload at line ${index + 1} in ${this.path}.`,
+        );
       }
     }
 
