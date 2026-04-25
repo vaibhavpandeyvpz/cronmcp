@@ -4,7 +4,7 @@
 [![Publish to NPM](https://github.com/vaibhavpandeyvpz/cronmcp/actions/workflows/publish-npm.yml/badge.svg)](https://github.com/vaibhavpandeyvpz/cronmcp/actions/workflows/publish-npm.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-`cronmcp` is an open-source cron scheduler stdio MCP server built on top of [`cron`](https://www.npmjs.com/package/cron), `commander`, and `@modelcontextprotocol/sdk`.
+`cronmcp` is an open-source cron scheduler stdio MCP server built on top of [`cron`](https://www.npmjs.com/package/cron), [`cron-parser`](https://www.npmjs.com/package/cron-parser), `commander`, and `@modelcontextprotocol/sdk`.
 
 It lets MCP-compatible clients create and manage scheduled prompt jobs, and optionally subscribe to cron tick notifications through an MCP notification channel.
 
@@ -12,6 +12,7 @@ It lets MCP-compatible clients create and manage scheduled prompt jobs, and opti
 
 - Exposes cron scheduling as an MCP server over stdio.
 - Uses the `cron` package for in-process job execution.
+- Validates schedules as 5-field local cron (`M H DoM Mon DoW`).
 - Persists jobs in JSONL under `~/.cronmcp/crontab`.
 - Provides tools to list, add, update, and remove jobs.
 - Supports one-shot schedules through `once: true`.
@@ -72,6 +73,8 @@ The server currently exposes these tools:
 - `cron_update_job`
 - `cron_remove_job`
 
+`schedule` values use local-time 5-field cron: `minute hour day-of-month month day-of-week`.
+
 ## Push Channel
 
 When started with `--channels`, the server:
@@ -108,15 +111,20 @@ Each record shape:
 ```json
 {
   "id": "job_34a56f84-cf7e-4f8d-810c-1777d9f4a5f1",
-  "schedule": "*/5 * * * * *",
+  "schedule": "*/5 * * * *",
   "prompt": "Check queue depth",
-  "once": false
+  "once": false,
+  "createdAt": 1777098600000
 }
 ```
 
 ## Notes
 
-- Cron expression validity is checked before jobs are persisted.
+- Cron expressions must be valid 5-field local schedules.
+- Jobs must have a next run within the next year.
+- At most 50 jobs can be scheduled at once.
+- Recurring jobs auto-expire after 7 days (they fire one final time, then are removed).
+- Recurring jobs use deterministic jitter to avoid synchronized fire spikes.
 - `once: true` jobs are removed after the first successful tick.
 - Incoming notification channels depend on MCP host support.
 

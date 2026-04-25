@@ -1,4 +1,10 @@
-import { CronJob, validateCronExpression } from "cron";
+import { CronJob } from "cron";
+import { RECURRING_MAX_AGE_MS } from "./constants.js";
+import {
+  computeRecurringJitterMs,
+  toRuntimeSchedule,
+  validateSchedule,
+} from "./schedule.js";
 import type { CronJobRecord, TickEvent } from "./types.js";
 
 type ScheduledEntry = {
@@ -32,7 +38,7 @@ export class CronScheduler {
     validateSchedule(job.schedule);
     this.unschedule(job.id);
 
-    const worker = new CronJob(job.schedule, () => {
+    const worker = new CronJob(toRuntimeSchedule(job.schedule), () => {
       void this.handleTick(job.id);
     });
     this.jobs.set(job.id, { job, worker });
@@ -63,10 +69,26 @@ export class CronScheduler {
       return;
     }
 
+    const recurring = !entry.job.once;
+    const aged = recurring ? isRecurringJobExpired(entry.job) : false;
+    const delayMs =
+      recurring && !aged
+        ? computeRecurringJitterMs(entry.job.schedule, entry.job.id)
+        : 0;
+
+    if (delayMs > 0) {
+      await sleep(delayMs);
+    }
+
+    const active = this.jobs.get(id);
+    if (!active) {
+      return;
+    }
+
     const event: TickEvent = {
       source: "cron",
-      job: entry.job,
-      prompt: entry.job.prompt,
+      job: active.job,
+      prompt: active.job.prompt,
       tickedAt: new Date().toISOString(),
     };
 
@@ -76,23 +98,25 @@ export class CronScheduler {
       return;
     }
 
-    if (!entry.job.once) {
+    if (!active.job.once && !aged) {
       return;
     }
 
-    this.unschedule(entry.job.id);
+    this.unschedule(active.job.id);
     try {
-      await this.handlers.onOnce(entry.job);
+      await this.handlers.onOnce(active.job);
     } catch {
       // Do not re-schedule once jobs after firing.
     }
   }
 }
 
-export function validateSchedule(schedule: string): void {
-  const result = validateCronExpression(schedule);
-  if (!result.valid) {
-    const message = result.error ? String(result.error) : undefined;
-    throw new Error(message ?? `Invalid cron expression: ${schedule}`);
-  }
+function isRecurringJobExpired(job: CronJobRecord): boolean {
+  return Date.now() - job.createdAt >= RECURRING_MAX_AGE_MS;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }

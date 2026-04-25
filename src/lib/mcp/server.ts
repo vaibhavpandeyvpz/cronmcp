@@ -5,7 +5,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { z } from "zod";
 import { CronChannel } from "../cron/channel.js";
-import { CronScheduler, validateSchedule } from "../cron/scheduler.js";
+import { CronScheduler } from "../cron/scheduler.js";
+import { MAX_JOBS } from "../cron/constants.js";
+import {
+  assertScheduleHasNextRun,
+  validateSchedule,
+} from "../cron/schedule.js";
 import { CronStore } from "../cron/store.js";
 import { createJsonResult } from "./helpers.js";
 import { packageMetadata } from "../package-metadata.js";
@@ -102,11 +107,13 @@ export class CronMcpServer {
       {
         title: "Add cron job",
         description:
-          "Add a cron job with schedule, prompt, and once flag, then schedule it immediately.",
+          "Add a cron job with a 5-field local schedule (M H DoM Mon DoW), prompt, and once flag, then schedule it immediately.",
         inputSchema: z.object({
           schedule: z
             .string()
-            .describe("Cron expression used by the cron package."),
+            .describe(
+              "Standard 5-field cron expression in local time: M H DoM Mon DoW (for example: */5 * * * *).",
+            ),
           prompt: z.string().describe("Prompt sent on each scheduled tick."),
           once: z
             .boolean()
@@ -131,7 +138,7 @@ export class CronMcpServer {
       {
         title: "Update cron job",
         description:
-          "Update schedule, prompt, and/or once for a cron job and reschedule it.",
+          "Update schedule, prompt, and/or once for a cron job and reschedule it. Schedules must use 5 local-time fields: M H DoM Mon DoW.",
         inputSchema: z.object({
           id: z.string().describe("Cron job id to update."),
           schedule: z.string().optional(),
@@ -159,12 +166,20 @@ export class CronMcpServer {
           id: z.string().describe("Cron job id to remove."),
         }),
       },
-      async ({ id }) => createJsonResult({ removed: await this.removeJob(id) }),
+      async ({ id }) => {
+        await this.removeJob(id);
+        return createJsonResult({ removed: true, id });
+      },
     );
   }
 
   private async addJob(input: CreateCronJobInput) {
     validateSchedule(input.schedule);
+    assertScheduleHasNextRun(input.schedule);
+    const jobs = await this.store.list();
+    if (jobs.length >= MAX_JOBS) {
+      throw new Error(`Too many scheduled jobs (max ${MAX_JOBS}). Remove one first.`);
+    }
 
     const job = await this.store.add(input);
     this.scheduler.schedule(job);
@@ -178,6 +193,7 @@ export class CronMcpServer {
 
     if (input.schedule) {
       validateSchedule(input.schedule);
+      assertScheduleHasNextRun(input.schedule);
     }
 
     const job = await this.store.update(id, input);
@@ -185,12 +201,17 @@ export class CronMcpServer {
     return job;
   }
 
-  private async removeJob(id: string): Promise<boolean> {
-    const removed = await this.store.remove(id);
-    if (removed) {
-      this.scheduler.unschedule(id);
+  private async removeJob(id: string): Promise<void> {
+    const jobs = await this.store.list();
+    const existing = jobs.some((job) => job.id === id);
+    if (!existing) {
+      throw new Error(`No scheduled job with id '${id}'.`);
     }
 
-    return removed;
+    const removed = await this.store.remove(id);
+    if (!removed) {
+      throw new Error(`Failed to remove scheduled job '${id}'.`);
+    }
+    this.scheduler.unschedule(id);
   }
 }

@@ -46,6 +46,6 @@ Incoming events from `cron` are one-way notifications emitted as `notifications/
 - `meta.session` is always the cron job id.
 - The JSON-decoded notification content includes:
   - `source`: `"cron"`
-  - `job`: `{ id, schedule, prompt, once }`
+  - `job`: `{ id, schedule, prompt, once, createdAt }`
   - `prompt`: scheduled instruction text
   - `tickedAt`: ISO timestamp

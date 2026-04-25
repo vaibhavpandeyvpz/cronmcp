@@ -5,11 +5,12 @@ export const cronJobSchema = z.object({
   schedule: z.string().min(1),
   prompt: z.string().min(1),
   once: z.boolean(),
+  createdAt: z.number().int().nonnegative(),
 });
 
 export type CronJobRecord = z.infer<typeof cronJobSchema>;
 
-export type CreateCronJobInput = Omit<CronJobRecord, "id">;
+export type CreateCronJobInput = Pick<CronJobRecord, "schedule" | "prompt" | "once">;
 
 export type UpdateCronJobInput = Partial<CreateCronJobInput>;
 

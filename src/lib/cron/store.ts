@@ -8,6 +8,7 @@ import {
   cronJobSchema,
   type UpdateCronJobInput,
 } from "./types.js";
+import { validateSchedule } from "./schedule.js";
 
 export class CronStore {
   constructor(private readonly path = crontabPath()) {}
@@ -34,7 +35,9 @@ export class CronStore {
       }
 
       try {
-        jobs.push(cronJobSchema.parse(parsed));
+        const job = cronJobSchema.parse(parsed);
+        validateSchedule(job.schedule);
+        jobs.push(job);
       } catch {
         throw new Error(
           `Invalid job payload at line ${index + 1} in ${this.path}.`,
@@ -49,6 +52,7 @@ export class CronStore {
     const job = cronJobSchema.parse({
       id: `job_${randomUUID()}`,
       ...input,
+      createdAt: Date.now(),
     });
     const jobs = await this.list();
     jobs.push(job);
