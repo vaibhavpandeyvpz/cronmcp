@@ -12,7 +12,9 @@ export class CronChannel {
       await this.mcp.notification({
         method: `notifications/${this.channel}`,
         params: {
-          content: JSON.stringify(event),
+          content: event.job.prompt,
+          attachments: [],
+          event,
           meta: {
             source: "cron",
             user: "scheduler",
