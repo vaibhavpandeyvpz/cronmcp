@@ -98,4 +98,3 @@ function stableJitterFraction(jobId: string): number {
 
   return parsed / 0x1_0000_0000;
 }
-

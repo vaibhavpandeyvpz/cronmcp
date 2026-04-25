@@ -178,7 +178,9 @@ export class CronMcpServer {
     assertScheduleHasNextRun(input.schedule);
     const jobs = await this.store.list();
     if (jobs.length >= MAX_JOBS) {
-      throw new Error(`Too many scheduled jobs (max ${MAX_JOBS}). Remove one first.`);
+      throw new Error(
+        `Too many scheduled jobs (max ${MAX_JOBS}). Remove one first.`,
+      );
     }
 
     const job = await this.store.add(input);

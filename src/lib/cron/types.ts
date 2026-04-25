@@ -10,7 +10,10 @@ export const cronJobSchema = z.object({
 
 export type CronJobRecord = z.infer<typeof cronJobSchema>;
 
-export type CreateCronJobInput = Pick<CronJobRecord, "schedule" | "prompt" | "once">;
+export type CreateCronJobInput = Pick<
+  CronJobRecord,
+  "schedule" | "prompt" | "once"
+>;
 
 export type UpdateCronJobInput = Partial<CreateCronJobInput>;
 
