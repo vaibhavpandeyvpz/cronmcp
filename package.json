@@ -1,6 +1,6 @@
 {
   "name": "cronmcp",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "TypeScript stdio MCP server for managing local cron prompts.",
   "type": "module",
   "bin": {
